@@ -1,0 +1,175 @@
+# reference commands and methods
+
+
+AT commands:
+
+// boot and setup
+AT+CNMP=2 // AUTO
+AT+CMNB=3 // cat-m prefered mode
+AT+CNCFG=0,1,"Mobilenet"
+AT+CGDCONT=1,"IP","Mobilenet" // define pdp context
+AT+CGNAPN // check APN returned by server
+AT+CNACT=0,1 // activate network connection
+AT+CNACT? // check ip address, connection
+ATE0 // dont echo back command
+
+// Not used -----
+AT+CBANDCFG? //check NB-IOT bands
+AT+CSQ //check signal intensity, resp: (rssi (2:30),ber(99-unknown))
+AT+CGREG? // check network status
+AT+CNACT? // check network IP
+
+//multiple cmds on 1 line
+at+cnmp=2;+CMNB=3;+CNACT=0,1
+
+// PING
+AT+SNPDPID=0
+AT+SNPING4="google.com",3,16,1000
+//AT+SNPING4="wotthome.net",3,16,1000
+
+// GPRS
+AT+CGATT=1  // attach to GPRS
+
+AT+CGNSPWR=0 // turn off
+
+// http get request
+at+shconf="url","wotthome.net"
+AT+SHCONN
+AT+SHSTATE?
+AT+SHREQ="/",1
+AT+SHREAD=0,162
+
+// HTTPS
+AT+CNACT=0,1
+
+//load cert file (only once)
+//at+cfsinit
+//at+cfswfile=3,"wotthome.crt",0,1864,1000
+//at+cfsterm
+//at+csslcfg="convert",2,"wotthome.crt"
+// make ssl request
+AT+CSSLCFG="sslversion",1,3
+AT+SHSSL=1,"wotthome.crt"
+//AT+SHSSL=1,""
+at+shconf="url","https://wotthome.net"
+at+shconf="bodylen",1024
+AT+SHCONF="HEADERLEN",350
+AT+SHCONN // run twice?
+AT+SHSTATE?
+AT+SHCHEAD
+//AT+SHAHEAD="Accept","*/*"
+//AT+SHAHEAD="User-Agent","curl/7.47.0"
+//AT+SHAHEAD="Content-Type","application/x-www-form-urlencoded"
+//AT+SHAHEAD="Connection","keep-alive"
+//AT+SHAHEAD="Cache-control","no-cache"
+AT+SHREQ="/ip",1
+AT+SHREAD=0,23
+at+shdisc
+
+
+// other
+AT+CLTS=1 // time synch
+AT+IPR=115200 // baud rate
+AT+CPSI? // network info
+AT+CNACT=0,0 // close network connection
+AT+CPOWD=1 // power down
+
+
+
+# HTTP Get example - Working :-)
+if sys.argv[1] == "http2":
+    print("++++++++++++++++++++ HTTP2 +++++++++++++++++++++\n")
+    AT('+CNACT=1')
+    AT("+CNACT?")
+    AT('+SHCONF="URL","http://minimi.ukfit.webfactional.com"')
+    AT('+SHCONF="BODYLEN",350')
+    AT('+SHCONF="HEADERLEN",350')
+    AT('+SHCONN',timeout=30, success="OK")
+    AT('+SHSTATE?')
+    AT('+SHREQ="http://minimi.ukfit.webfactional.com",1', timeout=30, success="+SHREQ:")
+    AT('+SHREAD=0,1199', timeout=30, success="</html>")
+    AT('+SHDISC')
+
+# MQTT (No SSL) - Working :-)
+if sys.argv[1] == "mqtt-nossl":
+    print("++++++++++++++++++++ MQTT - NO SSL +++++++++++++++++++++\n")
+    AT("+CNACT=1") # Open wireless connection
+    AT("+CNACT?") # Check connection open and have IP
+    AT('+SMCONF="CLIENTID",1233')
+    AT('+SMCONF="KEEPTIME",60') # Set the MQTT connection time (timeout?)
+    AT('+SMCONF="CLEANSS",1')
+    AT('+SMCONF="URL","{}","1883"'.format(MQTT_URL)) # Set MQTT address
+    smstate = AT('+SMSTATE?') # Check MQTT connection state
+    if smstate[1][0].split(":")[1].strip() == "0":
+        AT('+SMCONN', timeout=30) # Connect to MQTT
+    msg = "Hello Moto {}".format(datetime.now())
+    AT('+SMPUB="test001","{}",1,1'.format(len(msg)), timeout=30, success=">") # Publish command
+    send(msg.encode('utf-8'))
+    watch(timeout=10)
+    #AT('+SMSUB="test1234",1')
+    AT('+SMDISC') # Disconnect MQTT
+    AT("+CNACT=0") # Close wireless connection
+
+############################### SSL/TLS ##################################
+
+# Check certs on device - working :-)
+if sys.argv[1] == "certs-check":
+    print("++++++++++++++++++++ CERTS - CHECK +++++++++++++++++++++\n")
+    AT('+CFSINIT')
+    AT('+CFSGFIS=3,"{}"'.format(CA_NAME))
+    AT('+CFSGFIS=3,"{}"'.format(CERT_NAME))
+    AT('+CFSGFIS=3,"{}"'.format(KEY_NAME))
+    AT('+CFSTERM')
+
+# Delete certs on device - working :-)
+if sys.argv[1] == "certs-delete":
+    print("++++++++++++++++++++ CERTS - DELETE +++++++++++++++++++++\n")
+    AT('+CFSINIT')
+    AT('+CFSDFILE=3,"{}"'.format(CA_NAME))
+    AT('+CFSDFILE=3,"{}"'.format(CERT_NAME))
+    AT('+CFSDFILE=3,"{}"'.format(KEY_NAME))
+    AT('+CFSTERM')
+
+# Load a cert from a file on computer - working :-)
+if sys.argv[1] == "certs-load":
+    print("++++++++++++++++++++ CERTS - LOAD +++++++++++++++++++++\n")
+    AT('+CFSINIT')
+    with open(os.path.join(CERTS_FOLDER, CA_NAME),'rb') as f:
+        data = f.read()
+        AT('+CFSWFILE=3,"{}",0,{},5000'.format(CA_NAME, len(data)), success="DOWNLOAD")
+        send(data)
+    with open(os.path.join(CERTS_FOLDER, CERT_NAME),'rb') as f:
+        data = f.read()
+        AT('+CFSWFILE=3,"{}",0,{},5000'.format(CERT_NAME, len(data)), success="DOWNLOAD")
+        send(data)
+    with open(os.path.join(CERTS_FOLDER, KEY_NAME),'rb') as f:
+        data = f.read()
+        AT('+CFSWFILE=3,"{}",0,{},5000'.format(KEY_NAME, len(data)), success="DOWNLOAD")
+        send(data)
+    AT('+CFSTERM')
+
+# MQTT (SSL) - CA and client certs, working for Mosquitto.org :-(
+if sys.argv[1] == "mqtt-bothcerts":
+    print("++++++++++++++++++++ MQTT - CA and Client Cert +++++++++++++++++++++\n")
+    AT("+CNACT=1") # Open wireless connection
+    AT("+CNACT?") # Check connection open and have IP
+    AT('+SMCONF="CLIENTID", "TOMTEST01"')
+    AT('+SMCONF="KEEPTIME",60') # Set the MQTT connection time (timeout?)
+    AT('+SMCONF="CLEANSS",1')
+    AT('+SMCONF="URL","{}","8884"'.format(MQTT_URL)) # Set MQTT address
+    AT('+CSSLCFG="ctxindex", 0') # Use index 1
+    AT('+CSSLCFG="sslversion",0,3') # TLS 1.2
+    AT('+CSSLCFG="convert",2,"{}"'.format(CA_NAME))
+    AT('+CSSLCFG="convert",1,"{}","{}"'.format(CERT_NAME, KEY_NAME))
+    AT('+SMSSL=1, {}, {}'.format(CA_NAME, CERT_NAME))
+    AT('+SMSSL?')
+    AT('+SMSTATE?') # Check MQTT connection state
+    AT('+SMCONN', timeout=60, success="OK") # Connect to MQTT, this can take a while
+    AT('+SMSTATE?', timeout=5) # Check MQTT connection state
+    msg = "Hello Moto {}".format(datetime.now())
+    AT('+SMPUB="test001","{}",1,1'.format(len(msg)), success=">") # Publish command
+    send(msg.encode('utf-8'))
+    watch(timeout=10)
+    #AT('+SMSUB="test1234",1')
+    AT('+SMDISC') # Connect to MQTT
+'''
