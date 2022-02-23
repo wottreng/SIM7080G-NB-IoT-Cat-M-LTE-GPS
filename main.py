@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-
+import time
 '''
 main script for sim7080g module testing
 controlled via UART on Rpi Zero W
@@ -26,7 +26,17 @@ sim_tools:object = sim7080_tools_c()
 #
 sim_tools.start_sim7080g_module()
 #
-sim_tools.connect_to_network()
+sim_cmd.turn_off_echo()
+#
+sim_tools.Hardware_Info()
+#
+connected = sim_tools.connect_to_network()
+if connected == False:
+  quit()
+#
+sim_tools.get_gprs_info()
+#
+sim_tools.setup_dns()
 #
 response = sim_tools.ping_server()
 #
@@ -34,15 +44,15 @@ if "ERROR" not in response[1][1]:
     #
     sim_tools.https_request()
     #
-    sim_tools.get_GPS_Position()
+    #sim_tools.get_GPS_Position()
     #
-    sim_tools.get_ntp_time()
+    #sim_tools.get_gprs_info()
     #
-    sim_tools.get_gprs_info()
+    #sim_tools.get_ntp_time() # not working. can not connect?
     #
-    sim_cmd.disconnect_from_network()
+    #sim_cmd.disconnect_from_network()
     #
-    sim_cmd.power_down()
+    #sim_cmd.power_down()
     #
     fileTools.debug_log("[+] script complete")
     quit()

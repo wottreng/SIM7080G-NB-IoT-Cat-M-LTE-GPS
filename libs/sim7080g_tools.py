@@ -109,19 +109,21 @@ class sim7080_tools_c():
     # check for network connection 
     def connect_to_network(self, new_connection:bool=True):
         if new_connection:
-            self.AT("+CNMP=2") #
-            self.AT("+CMNB?")
+            self.AT("+CNMP=2") # auto
+            self.AT("+CMNB?") # default is 3: cat-m and nb-iot
+            self.AT("+CPSMS?") # power saving mode
             self.AT(f"+CNCFG=0,1,\"{config.APN}\"") # config network APN
             self.AT(f"+CGDCONT=1,\"IP\",\"{config.APN}\"") # config connection type
         response = self.AT("+CNACT?") # check for ip addr
-        if(len(response[1][0])<22): # if no public IP, then connect
+        if(len(response[1][0])<24): # if no public IP, then connect
             self.AT("+CNACT=0,1") # connect to network
             index = 0
-            while(len(response[1][0])<22):
+            while(len(response[1][0])<24):
                 time.sleep(2)
                 response = self.AT("+CNACT?")
                 index +=1
-                if index == 4:
+                if index == 8:
+                    fileTools.debug_log(f"ip addr output: {response}")
                     if config.verbose: print("[!] ERROR, no cellular connection")
                     fileTools.debug_log("[!] cellular failed to connect")
                     # free memory
@@ -148,8 +150,11 @@ class sim7080_tools_c():
     # 
     def https_request(self):
         if config.verbose: print("start https get request")
-        self.AT("+CSSLCFG=\"sslversion\",1,3")
-        self.AT(f"+SHSSL=1,\"{config.https_cert_name}\"")  # load ssl cert
+        self.AT("+csslcfg=\"sslversion\",1,3")
+        if config.confirm_cert:
+          self.AT(f"+shssl=1,\"{config.https_cert_name}\"")  # load ssl cert
+        else: 
+          self.AT('+shssl=1,""')
         self.AT(f"+shconf=\"url\",\"https://{config.url_domain_name}:443\"") # config url endpoint
         self.AT(f"+shconf=\"timeout\",60") # default timeout in seconds
         self.AT("+shconf=\"bodylen\",1024")
@@ -160,7 +165,8 @@ class sim7080_tools_c():
         response = self.AT("+SHCONN") # connect to server
         if config.verbose: print(f"-- verbose -- {response}")
         index = 0
-        while "OK" not in response[1][0]:
+        if "OK" not in response[1][0]:
+         while "OK" not in response[1][0]:
             fileTools.debug_log(f'server not connected. waiting...{index}')
             time.sleep(3)
             response = self.AT("+SHCONN") # output: ['Success', ['OK'], 1.033]
@@ -184,14 +190,22 @@ class sim7080_tools_c():
             response = None
             return True
 
-    # not tested
+    # not working. keep getting code 63 for connection problem
     def get_ntp_time(self):
         if config.verbose: print("[*] get NTP time")
-        self.AT('+CNTP="pool.ntp.org",0,1,2') # config: <ntp server>[,<time zone>][,<cid>][,<mode>]
-        self.AT('+CNTP', timeout=6, success="+CNTP") # request. output 1:success, 61:network error, 62:dns error, 63:connect error
+        fileTools.debug_log("[*] get NTP time")
+        self.AT('+cntpcid?')
+        self.AT('+CNTPCID=0')
+        self.AT('+CNTP=\"pool.ntp.org\",0,1,1') # config: <ntp server>[,<time zone>][,<cid>][,<mode>]
+        self.AT('+CNTP', timeout=10, success="+CNTP") # request. output 1:success, 61:network error, 62:dns error, 63:connect error
+        time.sleep(4)
+        self.AT('+CNTP', timeout=10, success="+CNTP")
+        time.sleep(2)
+        self.AT('+CCLK') # get time output
         return True
 
     '''
+    GPS/GNSS
     // GPS - needs network connection
 - ref: https://www.techstudio.design/wp-content/uploads/simcom/SIM7070_SIM7080_SIM7090_Series_GNSS_Application_Note_V1.02.pdf
 - note: takes time to acquire signal, when GPS is cold started
@@ -214,28 +228,31 @@ AT+CGNSINF ->  +CGNSINF: 1,1,20220213,23:15:59.000,23.357118,-56.470442,125.412,
         self.AT('+CGNSPWR=1', success="OK", timeout=1)
         time.sleep(1)
         self.AT("+cgnscold") # cold start
-        time.sleep(2)
+        time.sleep(10)
         # get gps data
         counter = 0
         while True:
-            response:list = self.AT('+CGNSINF',success='+CGNSINF: ',timeout=1)
+            response:list = self.AT('+CGNSINF',success='+CGNSINF: ',timeout=5)
             if ',,,,,,' in response[1][0]:
                 if config.verbose: print('no GPS signal yet')
                 fileTools.debug_log(f"no GPS signal yet: {counter}")
-                time.sleep(1)
+                time.sleep(3)
             elif "1" in response[1][0]: 
                 if config.verbose: print("GPS data received, data stored in data folder")
-                fileTools.writeStrToFile(data=response[1][0], path=f"{os.getcwd()}/data", filename="gps_data", method="a")
+                fileTools.writeStrToFile(data=response[1][0], path=f"{os.getcwd()}/data", filename="gps_data.txt", method="a")
+                if config.verbose: print(f"gps data: {response[1][0]}")
                 fileTools.debug_log(f"GPS data received, counter: {counter}")
-                self.AT('+CGNSPWR=0',timeout=1)
-                return True
+                #self.AT('+CGNSPWR=0',timeout=1)
+                #return True
+                time.sleep(2)
             else:
                 if config.verbose: print(f'[!] ERROR: {response}')
                 fileTools.debug_log(f"[!] ERROR: gps resp: {response}")
                 self.AT('+CGNSPWR=0',timeout=1)
                 return False
             counter+=1
-            if counter > 6: 
+            if counter > 20:
+                #self.AT('+SGNSCMD=1,0', success="+SGNSCMD")
                 self.AT('+CGNSPWR=0',timeout=1)
                 return False
 
@@ -249,10 +266,13 @@ AT+CGNSINF ->  +CGNSINF: 1,1,20220213,23:15:59.000,23.357118,-56.470442,125.412,
         self.AT('+HTTPREAD')
         self.AT('+HTTPTERM')
 
-    # NOT TESTED
+    # works
     def get_gprs_info(self):
+        self.AT("+cgatt=1") # attach to gprs
+        self.AT("+cgatt?")
         self.AT("+CGREG?") # Get network registration status
         self.AT("+CGACT?") # Show PDP context state
+        #self.AT("+cgact=1") # not supported on network
         self.AT('+CGPADDR') # Show PDP address
         self.AT("+CGCONTRDP") # Get APN and IP address
         self.AT('+CGNAPN') # Check nb-iot Status
@@ -289,6 +309,12 @@ AT+CGNSINF ->  +CGNSINF: 1,1,20220213,23:15:59.000,23.357118,-56.470442,125.412,
         self.AT("+CSQ") # Get signal strength
         self.AT('+CPSI?') # Get more detailed signal info
         self.AT('+CBAND?') # Get band
+        self.AT('+cnbs?') # band scan optimization
         return True
 
+    def setup_dns(self):
+        self.AT('+cdnspdpid?') # pdp index for dns
+        self.AT('+cdnspdpid=0')
+        self.AT('+cdnscfg="1.1.1.1","8.8.8.8"')
+        self.AT('+cdnsgip="wotthome.net"', success="+cdnsgip")
 # --------------------------------------------------
