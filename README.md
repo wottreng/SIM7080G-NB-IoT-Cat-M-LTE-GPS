@@ -15,6 +15,7 @@ IOT sim card: https://amzn.to/3GRQOWZ \
 5v battery pack: https://amzn.to/3oTOAjL \
 rpi zero W: https://amzn.to/3oSA6jV
 - - - -
+
 ## RPI SETUP:
 * add `gpio_init.sh` (in ref folder) to RPI `/bin`
 * add command `/bin/gpio_init.sh &` to RPI `/etc/rc.local`
@@ -46,6 +47,8 @@ rpi zero W: https://amzn.to/3oSA6jV
 * Module can be very finiky so lots of error handling is necessary 
 
 - - - -
+![module connections](https://github.com/wottreng/SIM7080G-NB-IoT-Cat-M-LTE-GPS/blob/main/pics/SIM7080G_Cat-M_NB-IoT_HAT.jpg)
+
 Connections: 
 
 | usbToUART | SIM7080G |
