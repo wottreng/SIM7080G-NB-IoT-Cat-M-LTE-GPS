@@ -15,35 +15,17 @@ IOT sim card: https://amzn.to/3GRQOWZ \
 5v battery pack: https://amzn.to/3oTOAjL \
 rpi zero W: https://amzn.to/3oSA6jV
 - - - -
-Connections: 
-
-usbToUART  | SIM7080G
-------------- | -------------
-VCC | 5v
-GND | GND 
-TX | TX 
-RX | RX 
-
-    
-rpi Zero W | SIM7080G
-------------- | -------------
-GPIO 4 | P7 {PWR} 
-Tx | RX {UART} 
-Rx | TX {UART} 
-GND | GND 
-5v | 5v 
-
-Notes: \
-SIM7080G uart jumper on VCC to 3V3 {rpi zero UART is 3.3v only} \
-SIM7080G jumper on PWR to P7 
-- - - -
+## RPI SETUP:
+* add `gpio_init.sh` (in ref folder) to RPI `/bin`
+* add command `/bin/gpio_init.sh &` to RPI `/etc/rc.local`
+* this will set power pin low and turn off SIM7080G hat
 
 ## ON FIRST BOOT:
 * SIM7080G module is auto baud so send AT commands at 115200 baud until it responds
 * set baud rate for sim7080g: `AT+IPR=115200`
 
 ## FOR HTTPS request:
-* ssl cert needs to be loaded into flash on sim7080G module
+* ssl cert can be loaded into flash on sim7080G module (to verify ssl server) or you can run unverified
 * see `/libs/tools/certs/READ_ME_certs.txt` for information on how to load cert into module
 
 ## How to run:
@@ -58,3 +40,34 @@ SIM7080G jumper on PWR to P7
 * run main script
     * `./venv/bin/python3 main.py` 
 
+## NOTES
+* GPS/GNSS and cellular can not be used together. Causes module to hang and be unresponsive
+  * make sure to turn off network activity then use GPS/GNSS then turn network back on and use Data functions
+* Module can be very finiky so lots of error handling is necessary 
+
+- - - -
+Connections: 
+
+| usbToUART | SIM7080G |
+|-----------|----------|
+| VCC       | 5v       |
+| GND       | GND      |
+| TX        | TX       |
+| RX        | RX       |
+
+or
+    
+| rpi Zero W | SIM7080G  |
+|------------|-----------|
+| GPIO 4     | P7 {PWR}  |
+| Tx         | RX {UART} |
+| Rx         | TX {UART} |
+| GND        | GND       |
+| 5v         | 5v        |
+
+Notes: \
+SIM7080G uart jumper on VCC to 3V3 {rpi zero UART is 3.3v only} \
+SIM7080G jumper on PWR to P7 
+----
+Cheers,
+Mark

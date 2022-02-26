@@ -2,7 +2,8 @@ import os
 import datetime
 '''
 module for reading and writing data
-Version 1.1
+Version 1.2
+
 written by Mark Wottreng
 '''
 def writeStrToFile(data: str, path: str = os.getcwd(), filename: str = "data.txt", method: str = "w"):
@@ -28,9 +29,12 @@ def readFileList(path: str = os.getcwd(), filename: str = "dataList.txt"):
     return dataList
 
 def debug_log(data:str, mode:str = "a"):
-    date = datetime.datetime.now()
-    dateFormat = date.strftime("%d-%b-%Y %H:%M:%S")
-    with open(f"{os.getcwd()}/debug_log.txt", mode) as log:
-        log.write(f"{dateFormat} >< {data}\n")
+    logging = True # turn defug logging on or off here --------------------------
+    if logging:
+        date = datetime.datetime.now()
+        dateFormat = date.strftime("%d-%b-%Y %H:%M:%S")
+        file_date = date.strftime("%d-%b-%Y")
+        with open(f"{os.getcwd()}/data/debug_log_{file_date}.txt", mode) as log:
+            log.write(f"{dateFormat} >< {data}\n")
 
 #

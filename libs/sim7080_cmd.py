@@ -6,19 +6,16 @@ written by Mark Wottreng
 import os
 
 try:
-    from libs.sim7080g_tools import sim7080_tools_c
+    from libs.sim7080g_tools import AT, send_serial_cmd
 except:
-    from sim7080g_tools import sim7080_tools_c
+    from sim7080g_tools import AT, send_serial_cmd
 
 
-st = sim7080_tools_c()
-
-
-def restart_board():
-    st.AT('+CFUN=1,1', timeout=30, success="*PSUTTZ")
+def restart_board(_timeout:int=30):
+    AT('+CFUN=1,1', timeout=_timeout, success="*PSUTTZ")
 
 def power_down():
-    st.AT("+CPOWD=1", success="NORMAL POWER DOWN")
+    AT("+CPOWD=1", success="NORMAL POWER DOWN")
     # alt: os.system('echo -e "at+cpowd=1\r" > /dev/serial0')
 
 def power_up_via_terminal():
@@ -30,13 +27,11 @@ def send_AT_cmd_via_terminal(cmd:str=""):
     return response
 
 def turn_off_echo():
-    st.send_serial_cmd("ATE0")
-
-def disconnect_from_network():
-    st.AT("+CNACT=0,0")
+    send_serial_cmd("ATE0")
 
 def set_debug_level():
-    st.AT("+CMEE=2") 
+    # more verbose debug output
+    AT("+CMEE=2") 
 
 # --------------------------------
     

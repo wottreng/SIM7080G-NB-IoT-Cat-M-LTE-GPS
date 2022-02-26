@@ -1,2 +1,6 @@
 /venv
 /.idea
+/sync_rpi.sh
+/data/*
+/libs/config.py
+/debug_log.txt
