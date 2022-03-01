@@ -30,13 +30,17 @@ def connect_to_network(disconnect: bool = False) -> bool:
     AT("+CMNB?")  # default is 3: cat-m and nb-iot
     AT("+CPSMS?")  # power saving mode
     AT(f"+CNCFG=0,1,\"{config.APN}\"")  # config network APN
+    AT("+cgdcont?") # range for PDP values
     AT(f"+CGDCONT=1,\"IP\",\"{config.APN}\"")  # config connection type
     response = AT("+CNACT?")  # check for ip addr
+    AT("+cgnapn")
     if (len(response[1][0]) < 24):  # if no public IP, then connect
         AT("+CNACT=0,1")  # connect to network
         index = 0
         while (len(response[1][0]) < 24):
             time.sleep(2)
+            AT("+CSQ")  # cellular quality
+            AT("+cgpaddr?") # show pdp address
             response = AT("+CNACT?")
             index += 1
             if index == 8:
@@ -45,7 +49,7 @@ def connect_to_network(disconnect: bool = False) -> bool:
                 fileTools.debug_log("[!] cellular failed to connect")
                 return False
     config.public_IP_address = response[1][0]
-    AT("+CSQ")  # cellular quality
+    #
     get_gprs_info()
 
     #
@@ -276,9 +280,11 @@ def mqtt_req():
 
 # works
 def get_gprs_info() -> bool:
-    AT("+cgatt=1")  # attach to gprs
+    #AT("+cgatt=1")  # attach to gprs
     AT("+cgatt?")  # gprs status
+    AT("+CSQ")  # cellular quality
     AT("+CGREG?")  # Get network registration status
+    AT("+cops?")  # network info, network mode
     AT("+CGACT?")  # Show PDP context state
     # AT("+cgact=1") # not supported on network
     AT('+CGPADDR')  # Show PDP address

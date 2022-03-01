@@ -9,13 +9,20 @@ written by Mark Wottreng
 def writeStrToFile(data: str, path: str = os.getcwd(), filename: str = "data.txt", method: str = "w"):
     with open(f"{path}/{filename}", method) as file:
         file.write(f"{data}\n")
-    print(f"data writen to: {filename}")
+    #print(f"data writen to: {filename}")
 
 def writeListToFile(data: list, path: str = os.getcwd(), filename: str = "dataList.txt", method: str = "w"):
     with open(f"{path}/{filename}", method) as file:
         for line in data:
             file.write(f"{line}\n")
-    print(f"data list written to: {filename}")
+    #print(f"data list written to: {filename}")
+
+def writeDictToFile(data: dict, path: str = os.getcwd(), filename: str = "dataList.txt", method: str = "w"):
+    with open(f"{path}/{filename}", method) as file:
+        for key, value in data.items():
+            file.write(f"{key}:{value},")
+        file.write("\n")
+    #print(f"data dict written to: {filename}")
 
 def readFileList(path: str = os.getcwd(), filename: str = "dataList.txt"):
     dataList: list = []

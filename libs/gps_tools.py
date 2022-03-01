@@ -35,7 +35,7 @@ def get_GPS_Position(number_of_data_points:int=20, time_between_data_points:int=
     :param number_of_data_points: integer
     :param power_off_gps_when_finished: bool
     :param time_between_data_points: integer
-    :return: bool for completed successfully or not
+    :return: bool, completed successfully or not
     '''
     # check for network connection:
     #network_connection = connect_to_network(new_connection=False)
@@ -88,7 +88,7 @@ def get_GPS_Position(number_of_data_points:int=20, time_between_data_points:int=
             if "1" in gps_data[1]: # good data
                 if config.verbose: print("GPS data received, data stored in data folder")
                 fileTools.writeStrToFile(data=response[1][0], path=f"{os.getcwd()}/data", filename="gps_data.txt", method="a")
-                config.gps_data.append(response[1][0])
+                sort_gps_data(response[1][0])
                 if config.verbose: print(f"gps data: {response[1][0]}")
                 fileTools.debug_log(f"GPS data received, counter: {counter}")
             else: # not accurate
@@ -123,21 +123,23 @@ def single_GPS_point_req(number_of_attempts:int=10):
     if config.verbose: print("[+] start single gps point req...")
     counter = 0
     while True:
-        resp = AT("+sgnscmd=1,0", success="+SGNSCMD", timeout=10)
+        resp = AT("+sgnscmd=1,0", success="+SGNSCMD", timeout=20, failure="+SGNSERR")
         if config.verbose: print(resp)
         if "Success" in resp[0]:
             fileTools.debug_log("[*] gps data received")
             for line in resp[1]:
                 if "+SGNSCMD" in line:
-                    sort_single_gps_data(line)
-                    fileTools.debug_log(f"gps_data: {config.gps_data}")
+                    sort_gps_data(line)
+                    fileTools.writeDictToFile(data=config.gps_data, path=f"{os.getcwd()}/data", filename="gps_data", method="a")
             return True
+        elif "Error" in resp[0]:
+            fileTools.debug_log(f"[!] gps ERROR: {resp[1]}")
         if counter > number_of_attempts:
             fileTools.debug_log("Error: no response from GPS")
             return False
         counter+=1
 
-def sort_single_gps_data(gps_data:str):
+def sort_gps_data(gps_data:str):
     '''
     :param gps_data: ex. "+SGNSCMD: 1,17:47:05,42.35724,-44.47087,37.25,99.74,135.00,0.00,0.00,0x17f31fe51a8,311\r\r\n"
     :return: dictionary of key, values for gps data

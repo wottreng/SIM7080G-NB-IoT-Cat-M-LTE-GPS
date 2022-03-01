@@ -89,12 +89,12 @@ def start_sim7080g_module():
     # restart_board(_timeout=10)
     AT(timeout=4)
     AT(timeout=4)
-    response = AT(timeout=4) # test if its on
+    response = AT(timeout=10) # test if its on
     if "Timeout" in response[0]: # if off
         power_on() # toggle PWR pin
         index = 0
         while True: # wait for ready response
-            response = AT(success="*PSUTTZ", timeout=5)
+            response = AT(success="OK", timeout=5)
             if "Success" in response[0]:
                 break
             if index > 6:
@@ -106,10 +106,15 @@ def start_sim7080g_module():
 
 #
 def Hardware_Info() -> bool:
+    if config.verbose: print("check sim card:")
     AT("+CPIN?") # Check sim card is present and active
+    if config.verbose: print("check module name:")
     AT("+CGMM") # Check module name
+    if config.verbose: print("firmware version:")
     AT("+CGMR") # Firmware version
+    if config.verbose: print("IMEI number:")
     AT('+GSN') # Get IMEI number
+    if config.verbose: print("system time:")
     AT('+CCLK?') # Get system time
     return True
 
