@@ -11,18 +11,20 @@ AT+CGNSINF ->  +CGNSINF: 1,1,20220213,23:15:59.000,23.357118,-56.470442,125.412,
 
 import time
 import os
+
 try:
     from libs.tools import fileTools
-    #from libs.tools import timeTools
+    # from libs.tools import timeTools
     from libs.sim7080g_tools import AT
     from libs.network_tools import connect_to_network
     from libs import config
 except:
     from tools import fileTools
-    #from tools import timeTools
+    # from tools import timeTools
     from sim7080g_tools import AT
     from network_tools import connect_to_network
     import config
+
 
 #
 def toggle_RF_signal():
@@ -30,16 +32,17 @@ def toggle_RF_signal():
     AT("+CFUN=0", success="OK", timeout=10)
     AT("+CFUN=1", success="OK", timeout=10)
 
-def get_GPS_Position(number_of_data_points:int=20, time_between_data_points:int=3 ):
+# not used or tested ----------------
+def get_GPS_Position(number_of_data_points: int = 20, time_between_data_points: int = 3):
     '''
     :param number_of_data_points: integer
     :param power_off_gps_when_finished: bool
     :param time_between_data_points: integer
-    :return: bool, completed successfully or not
+    :return: bool for completed successfully or not
     '''
     # check for network connection:
-    #network_connection = connect_to_network(new_connection=False)
-    #if network_connection == False:
+    # network_connection = connect_to_network(new_connection=False)
+    # if network_connection == False:
     #    if config.verbose: print("[!] no network connection for GPS")
     #    fileTools.debug_log("[!] no network connection for GPS")
     #    return False
@@ -49,7 +52,7 @@ def get_GPS_Position(number_of_data_points:int=20, time_between_data_points:int=
     if config.verbose: print('Start GPS session...')
     AT('+CGNSPWR=1', success="OK", timeout=1)
     time.sleep(1)
-    AT("+cgnscold", timeout=15, success="OK") # cold start
+    AT("+cgnscold", timeout=15, success="OK")  # cold start
     time.sleep(10)
     # get gps data
     counter = 0
@@ -76,36 +79,38 @@ def get_GPS_Position(number_of_data_points:int=20, time_between_data_points:int=
             16: horizontal position accuracy, meters
             17: vertical position accuracy, meters
         '''
-        response:list = AT('+CGNSINF',success='+CGNSINF: ',timeout=5)
+        response: list = AT('+CGNSINF', success='+CGNSINF: ', timeout=5)
         if ',,,,,,' in response[1][0]:
             if config.verbose: print('no GPS signal yet')
             fileTools.debug_log(f"no GPS signal yet: {counter}")
             time.sleep(time_between_data_points)
-        elif "1" in response[1][0]: 
+        elif "1" in response[1][0]:
             # bad resp ex: +CGNSINF: 1,,,0.000000,0.000000,-18.000,,,1,,0.1,0.1,0.1,,,,9999000.0,6144.0
             gps_data = response[1][0].split(",")
             fileTools.debug_log(f"gps_data: {gps_data}")
-            if "1" in gps_data[1]: # good data
+            if "1" in gps_data[1]:  # good data
                 if config.verbose: print("GPS data received, data stored in data folder")
-                fileTools.writeStrToFile(data=response[1][0], path=f"{os.getcwd()}/data", filename="gps_data.txt", method="a")
-                sort_gps_data(response[1][0])
+                fileTools.writeStrToFile(data=response[1][0], path=f"{os.getcwd()}/data", filename="gps_data.txt",
+                                         method="a")
+                config.gps_data.append(response[1][0])
                 if config.verbose: print(f"gps data: {response[1][0]}")
                 fileTools.debug_log(f"GPS data received, counter: {counter}")
-            else: # not accurate
+            else:  # not accurate
                 if config.verbose: print("GPS data is not accurate")
                 fileTools.debug_log(f"GPS data received, not good, counter: {counter}, data: {response[1][0]}")
             time.sleep(time_between_data_points)
         else:
             if config.verbose: print(f'[!] ERROR: {response}')
             fileTools.debug_log(f"[!] ERROR: gps resp: {response}")
-            AT('+CGNSPWR=0',timeout=1)
+            AT('+CGNSPWR=0', timeout=1)
             return False
-        counter+=1
+        counter += 1
         if counter > number_of_data_points:
-            AT('+CGNSPWR=0',timeout=1) # power off gps
+            AT('+CGNSPWR=0', timeout=1)  # power off gps
             return True
 
-def single_GPS_point_req(number_of_attempts:int=10):
+# working
+def single_GPS_point_req(number_of_attempts: int = 10):
     '''
     !!! possible bug fix: AT+SGNSCMD=1,0
     :return:
@@ -129,22 +134,24 @@ def single_GPS_point_req(number_of_attempts:int=10):
             fileTools.debug_log("[*] gps data received")
             for line in resp[1]:
                 if "+SGNSCMD" in line:
-                    sort_gps_data(line)
-                    fileTools.writeDictToFile(data=config.gps_data, path=f"{os.getcwd()}/data", filename="gps_data", method="a")
+                    sort_single_gps_data(line)
+                    fileTools.writeDictToFile(data=config.gps_data, path=f"{os.getcwd()}/data", filename="gps_data",
+                                              method="a")
             return True
         elif "Error" in resp[0]:
             fileTools.debug_log(f"[!] gps ERROR: {resp[1]}")
         if counter > number_of_attempts:
             fileTools.debug_log("Error: no response from GPS")
             return False
-        counter+=1
+        counter += 1
 
-def sort_gps_data(gps_data:str):
+# working
+def sort_single_gps_data(gps_data: str):
     '''
     :param gps_data: ex. "+SGNSCMD: 1,17:47:05,42.35724,-44.47087,37.25,99.74,135.00,0.00,0.00,0x17f31fe51a8,311\r\r\n"
     :return: dictionary of key, values for gps data
     '''
-    temp_string = gps_data.split(" ")[1].strip() # cut off "+SGNSCMD: " and remove '\r\r\n'
+    temp_string = gps_data.split(" ")[1].strip()  # cut off "+SGNSCMD: " and remove '\r\r\n'
     data_list = temp_string.split(",")
     keys = ["mode", "time", "lat", "long", "msl accuracy", "msl alt", "msl alt sea level",
             "speed", "direction", "hex_epoch", "flag"]

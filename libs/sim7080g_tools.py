@@ -91,7 +91,9 @@ def start_sim7080g_module():
     AT(timeout=4)
     response = AT(timeout=10) # test if its on
     if "Timeout" in response[0]: # if off
-        power_on() # toggle PWR pin
+        fileTools.debug_log("[!] no resp. power cycle module")
+        power_on()  # toggle PWR pin
+        time.sleep(5)
         index = 0
         while True: # wait for ready response
             response = AT(success="OK", timeout=5)
@@ -102,6 +104,7 @@ def start_sim7080g_module():
                 return False
             index += 1
     fileTools.debug_log("[*] module started")
+    if config.verbose: print("[*] module started")
     return True
 
 #
@@ -118,14 +121,13 @@ def Hardware_Info() -> bool:
     AT('+CCLK?') # Get system time
     return True
 
-# when sim7080 becomes unresponsive, try reset then power toggle 
-def regain_control() -> bool:
-    pass
-
-#
+# power off module and sleep
 def deepSleep(how_long: int = 100):
+    from libs.sim7080_cmd import power_down
+    #
     if config.verbose: print(f"[+] going into deep sleep for {how_long} sec")
     fileTools.debug_log(f"[+] going into deep sleep for {how_long} sec")
+    power_down()
     time.sleep(how_long)
     fileTools.debug_log("[+] woke up from sleep")
     if config.verbose: print("[+] woke up from sleep")

@@ -24,6 +24,7 @@ def connect_to_network(disconnect: bool = False) -> bool:
     if disconnect:
         AT("+CNACT=0,0")
         time.sleep(1)
+        fileTools.debug_log("[*] disconnect from network")
         return True
     # -- connect
     AT("+CNMP=2")  # auto
@@ -49,9 +50,9 @@ def connect_to_network(disconnect: bool = False) -> bool:
                 fileTools.debug_log("[!] cellular failed to connect")
                 return False
     config.public_IP_address = response[1][0]
+    fileTools.debug_log("[*] connected to network")
     #
     get_gprs_info()
-
     #
     return True
 
@@ -163,7 +164,7 @@ def https_post_request(domain_name: str = config.url_domain_name_0, path: str = 
                 response = None
                 restart_board()
                 return False
-    if "OK" in response[1][0]:  # if connection to server is successful
+    if "Success" in response[0]:  # if connection to server is successful
         AT("+SHSTATE?")  # return https connection state: 1 or 0
         AT("+SHCHEAD")  # clear request header
         # AT("+SHAHEAD=\"Content-Type\",\"application/x-www-form-urlencoded\"")
@@ -181,15 +182,19 @@ def https_post_request(domain_name: str = config.url_domain_name_0, path: str = 
                 value = value[:63]
             AT(f"+shpara=\"{key}\",\"{value}\"")  # add body content
         # -- send data --
-        response = AT(f"+SHREQ=\"{path}\",3", success="+SHREQ", timeout=20)  # (path, req)
+        response = AT(f"+SHREQ=\"{path}\",3", success="+SHREQ", failure="+SHSTATE: 0", timeout=20)  # (path, req)
         if config.verbose: print(
             f'server resp: {response}')  # +SHREQ: <type string>,<StatusCode>,<DataLen> ie. '+SHREQ: "GET",200,31\r\n'
+        if "Error" in response[0]:
+            fileTools.debug_log(f"[!] Error, data not sent, server resp: {response}")
+            return False
         if response[0] != "Success":
             fileTools.debug_log(f"[!] Error, data not sent, server resp: {response}")
             return False
+        #
         fileTools.debug_log(f"server resp: {response}")
         response_list = response[1][1].strip().split(" ")[1].split(",")  # ["GET",200,31]
-        status_code = response_list[1]  # ie. 200
+        # status_code = response_list[1]  # ie. 200
         response_length = response_list[2]  # ie. 31
         fileTools.debug_log(f"response_list: {response_list}")
         AT(f"+shread=0,{response_length}", success="ip", timeout=2)  # read response bytes from x,y
@@ -232,7 +237,7 @@ def signal_info() -> bool:
     return True
 
 
-#
+# working
 def setup_dns(dns_req_for_domain_name=False, domain_name=config.url_domain_name_1) -> bool:
     AT('+cdnspdpid?')  # pdp index for dns
     AT('+cdnspdpid=0')  # define pdp index
